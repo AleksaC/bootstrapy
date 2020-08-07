@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 import os
 import sys
 
-if __name__ == "__main__":
+
+def bootstrap():
     if __file__ == "<stdin>":
         os.system("git clone git@github.com:AleksaC/drf-base.git __project__")
         os.execl(sys.executable, sys.executable, "__project__/bootstrap.py")
@@ -24,3 +23,12 @@ if __name__ == "__main__":
 
     current_file_name = os.path.basename(path)
     os.remove(os.path.join(new_project_base, current_file_name))
+
+
+
+def main():
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

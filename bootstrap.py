@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-
 import os
 import sys
 
 
+PROJECT_REMOTE = "git@github.com:AleksaC/drf-base.git __project__"
+
+
 def bootstrap():
     if __file__ == "<stdin>":
-        os.system("git clone git@github.com:AleksaC/drf-base.git __project__")
+        os.system("git clone %s" % PROJECT_REMOTE)
         os.execl(sys.executable, sys.executable, "__project__/bootstrap.py")
 
     if not sys.stdin.isatty():
@@ -23,7 +25,6 @@ def bootstrap():
 
     current_file_name = os.path.basename(path)
     os.remove(os.path.join(new_project_base, current_file_name))
-
 
 
 def main():

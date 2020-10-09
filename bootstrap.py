@@ -2,7 +2,6 @@
 import os
 import sys
 
-
 PROJECT_REMOTE = "git@github.com:AleksaC/drf-base.git __project__"
 
 

@@ -16,7 +16,7 @@ resources:
 jobs:
   - template: jobs/python-tests.yml@aleksac
     parameters:
-      toxenvs: [ py35, py36, py37, py38, py39, pypy3 ]
+      toxenvs: [ py36, py37, py38, py39, pypy3 ]
 
   - template: jobs/python-tests.yml@aleksac
     parameters:

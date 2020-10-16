@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import json
 import os
 import re
 import shutil
@@ -10,6 +10,7 @@ from urllib.request import urlopen
 
 from typing import Dict
 from typing import Set
+from typing import Tuple
 from typing import Union
 
 
@@ -65,6 +66,13 @@ def traverse_repo(root: Union[str, os.DirEntry]) -> None:
                             pass
 
 
+def binary_choice(question: str, options: Tuple[str, str]) -> str:  # pragma: no cover
+    choice = ""
+    while choice not in options:
+        choice = input(f"{question} [{options[0]}/{options[1]}] ")
+    return choice
+
+
 def inquire(variables: Set[str]) -> Dict[str, str]:
     values = {}
     print("Enter the values for the following variables:")
@@ -85,27 +93,47 @@ def render_files(fc: Dict[str, Set[str]], values: Dict[str, str]) -> None:
 
 
 def render_paths(fps: Set[str], values: Dict[str, str]) -> None:
-    for fp in fps:
-        path = ""
-        for name in re.split(VARIABLE_RE, fp):
-            if name in values:
-                extended_path = path + values[name]
-                os.rename(f"{path}___{name}___", extended_path)
-                path = extended_path
-            else:
-                path += name
+    # TODO: Horrible implementation -- clean up ASAP
+    if not fps:
+        return
+
+    old_path_prefixes: Dict[str, str] = {}
+
+    for fp in fps.copy():
+        stale = False
+        for prefix in old_path_prefixes:
+            if fp.startswith(prefix):
+                fps.add(fp.replace(prefix, old_path_prefixes[prefix]))
+                fps.remove(fp)
+                stale = True
+                break
+        if stale:
+            continue
+        root, var, rest = re.split(VARIABLE_RE, fp, 1)
+        if rest.startswith("."):
+            os.rename(f"{root}___{var}___{rest}", f"{root}{values[var]}{rest}")
+        else:
+            os.rename(f"{root}___{var}___", f"{root}{values[var]}")
+        fps.remove(fp)
+        new_path = f"{root}{values[var]}{rest}"
+        old_path_prefixes[f"{root}___{var}___"] = f"{root}{values[var]}"
+        if re.search(VARIABLE_RE, new_path):
+            fps.add(new_path)
+
+    render_paths(fps, values)
 
 
-def create_github_repo(repo_name: str) -> str:
-    user_or_org = ""
-    while user_or_org not in {"u", "o"}:
-        user_or_org = input(
-            "Are you creating a repository for a user or an organization? [u/o] "
+def create_github_repo(repo_name: str) -> str:  # pragma: no cover
+    user = (
+        binary_choice(
+            "Are you creating a repository for a user or an organization?", ("u", "o")
         )
+        == "u"
+    )
     print()
-    user = user_or_org == "u"
     user_or_org_name = input(f"{'User' if user else 'Organization'} name: ")
-    token = input("Enter github personal access token: ")
+    private = binary_choice("Do you want to make the repo private?", ("y", "n")) == "y"
+    token = input("Enter GitHub personal access token: ")
 
     url = "https://api.github.com/"
     if user:
@@ -113,7 +141,7 @@ def create_github_repo(repo_name: str) -> str:
     else:
         url += f"orgs/{user_or_org_name}/repos"
     headers = {"Authorization": f"token {token}"}
-    data = f'{{"name":"{repo_name}"}}'
+    data = json.dumps({"name": repo_name, "private": private})
 
     req = Request(url, headers=headers, data=data.encode())
     print("\nCreating GitHub repo...\n")
@@ -123,7 +151,7 @@ def create_github_repo(repo_name: str) -> str:
         print(
             "Something went wrong - please check that the repository with the name "
             f"{repo_name} doesn't already exist. Also make sure that the personal "
-            "access token you provided is correct."
+            "access token you provided is correct and that it has the right privileges."
         )
         print(e)
         return ""
@@ -134,7 +162,7 @@ def create_github_repo(repo_name: str) -> str:
     return ""
 
 
-def push_to_github(repo_path: str) -> int:
+def push_to_github(repo_path: str) -> int:  # pragma: no cover
     url = f"git@github.com:{repo_path}"
 
     commands = [
@@ -152,9 +180,10 @@ def push_to_github(repo_path: str) -> int:
     return 0
 
 
-def main() -> int:
+def main() -> int:  # pragma: no cover
     if __file__ == "<stdin>":
         os.system(f"git clone --depth 1 {PROJECT_REMOTE} ___repo_name___")
+        print()
         os.execl(
             sys.executable,
             sys.executable,
@@ -170,6 +199,12 @@ def main() -> int:
     if os.path.exists(".git"):
         shutil.rmtree(".git")
 
+    if os.path.exists("README.md"):
+        os.remove("README.md")
+
+    if os.path.exists("README_TEMPLATE.md"):
+        os.rename("README_TEMPLATE.md", "README.md")
+
     traverse_repo(os.getcwd())
     values = inquire(variables)
     render_files(file_contents, values)
@@ -181,13 +216,14 @@ def main() -> int:
 
     os.remove(os.path.join(os.getcwd(), os.path.basename(__file__)))
 
-    publish_to_github = ""
-    while publish_to_github not in {"y", "n"}:
-        publish_to_github = input(
-            "Publish the repo to github? (Requires personal access token) [y/n] "
+    publish_to_github = (
+        binary_choice(
+            "Publish the repo to github? (Requires personal access token)", ("y", "n")
         )
+        == "y"
+    )
 
-    if publish_to_github == "y":
+    if publish_to_github:  # pragma: no cover
         print()
         repo_path = create_github_repo(values["repo_name"])
         if repo_path:
@@ -199,4 +235,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\nInterrupted by user\n")
+        sys.exit(0)

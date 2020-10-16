@@ -1,4 +1,5 @@
 import io
+import os
 
 import pytest
 
@@ -36,16 +37,13 @@ def test_traverse_repo(path, file):
     subdir = root / "___subdir___"
     subdir.mkdir()
     (root / "no_match.txt").write_text("No match here")
+    (root / "test_file").write_bytes(os.urandom(100))
 
     bootstrap.traverse_repo(str(root))
 
     assert {"dir", "test", "subdir", "var1", "var2"} == bootstrap.variables
     assert {str(path), str(subdir)} == bootstrap.file_paths
     assert {str(file): {"var1", "var2"}} == bootstrap.file_contents
-
-
-def test_traverse_repo_binary_file():
-    pass
 
 
 def test_inquire(capsys, monkeypatch):
@@ -97,9 +95,5 @@ def test_render_paths(path, tmpdir):
     assert str(subdir) == str(tmpdir / "subdir1" / "subdir2")
 
 
-def test_create_github_repo():
-    pass
-
-
-def test_push_to_github():
+def test_main(path, file):
     pass

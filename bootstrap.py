@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import json
 import os
 import re
@@ -16,11 +17,12 @@ from typing import Union
 
 VARIABLE_RE = re.compile("___(?P<var_name>[a-zA-Z_][a-zA-Z_0-9]*)___")
 
-PROJECT_REMOTE = "git@github.com:AleksaC/test-template.git"
+PROJECT_REMOTE = "git@github.com:AleksaC/bootstrapy.git"
 
 # TODO: Look for a better way of excluding files than hard-coding them here.
 #  Maybe try parsing .gitignore (.git should stay hardcoded anyway)
 IGNORE = {
+    "bootstrap.py",
     ".git",
     ".idea",
     ".vscode",
@@ -81,8 +83,8 @@ def inquire(variables: Set[str]) -> Dict[str, str]:
     return values
 
 
-def render_files(fc: Dict[str, Set[str]], values: Dict[str, str]) -> None:
-    for fp, vrs in fc.items():
+def render_files(files: Dict[str, Set[str]], values: Dict[str, str]) -> None:
+    for fp, vrs in files.items():
         with open(fp, "r+") as f:
             c = f.read()
             for var in vrs:
@@ -196,6 +198,11 @@ def main() -> int:  # pragma: no cover
     repo_path = os.path.dirname(os.path.realpath(__file__))
     os.chdir(repo_path)
 
+    variable = re.match(VARIABLE_RE, os.path.basename(repo_path))
+    if variable:
+        variables.add(variable.group("var_name"))
+        file_paths.add(repo_path)
+
     if os.path.exists(".git"):
         shutil.rmtree(".git")
 
@@ -238,5 +245,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print("\nInterrupted by user\n")
+        print("\n\nInterrupted by user\n")
         sys.exit(0)

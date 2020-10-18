@@ -7,12 +7,19 @@ import bootstrap
 
 
 @pytest.fixture
-def path(tmpdir):
-    path = tmpdir / "___test___"
-    path.mkdir()
-    path = path / "___dir___"
-    path.mkdir()
-    return path
+def directory(tmpdir):
+    root = tmpdir
+
+    subdir_1 = root / "___subdir1___"
+    subdir_1.mkdir()
+
+    test_file = subdir_1 / "___test___.txt"
+    test_file.write_text(" ", "utf-8")
+
+    subdir_2 = subdir_1 / "___subdir2___"
+    subdir_2.mkdir()
+
+    return test_file, subdir_2
 
 
 @pytest.fixture
@@ -31,18 +38,18 @@ def file(tmp_path):
     return path
 
 
-def test_traverse_repo(path, file):
+def test_traverse_repo(directory, file):
     root = file.parent
     (root / ".git").mkdir()
-    subdir = root / "___subdir___"
-    subdir.mkdir()
     (root / "no_match.txt").write_text("No match here")
     (root / "test_file").write_bytes(os.urandom(100))
 
+    test_file, subdir = directory
+
     bootstrap.traverse_repo(str(root))
 
-    assert {"dir", "test", "subdir", "var1", "var2"} == bootstrap.variables
-    assert {str(path), str(subdir)} == bootstrap.file_paths
+    assert {"subdir1", "test", "subdir2", "var1", "var2"} == bootstrap.variables
+    assert {str(test_file), str(subdir)} == bootstrap.file_paths
     assert {str(file): {"var1", "var2"}} == bootstrap.file_contents
 
 
@@ -83,17 +90,14 @@ def test_render_files(file):
     )
 
 
-def test_render_paths(path, tmpdir):
-    values = {"test": "subdir1", "dir": "subdir2"}
+def test_render_paths(directory, tmpdir):
+    values = {"subdir1": "subdir", "test": "file", "subdir2": "subdir_2"}
 
-    bootstrap.render_paths({str(path)}, values)
+    file, dir_ = directory
 
-    subdir = tmpdir.listdir()[0]
-    assert str(subdir) == str(tmpdir / "subdir1")
+    bootstrap.render_paths({str(file), str(dir_)}, values)
 
-    subdir = subdir.listdir()[0]
-    assert str(subdir) == str(tmpdir / "subdir1" / "subdir2")
-
-
-def test_main(path, file):
-    pass
+    assert [str(tmpdir / "subdir")] == tmpdir.listdir()
+    assert sorted(
+        [str(tmpdir / "subdir" / "file.txt"), str(tmpdir / "subdir" / "subdir_2")]
+    ) == sorted((tmpdir / "subdir").listdir())

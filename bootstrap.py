@@ -183,7 +183,7 @@ def push_to_github(repo_path: str) -> int:  # pragma: no cover
 
 
 def main() -> int:  # pragma: no cover
-    if __file__ == "<stdin>":
+    if "__file__" not in globals() or __file__ == "<stdin>":
         os.system(f"git clone --depth 1 {PROJECT_REMOTE} ___repo_name___")
         print()
         os.execl(
